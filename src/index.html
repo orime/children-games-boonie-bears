@@ -1,0 +1,44 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>熊出没森林探险</title>
+    <link rel="stylesheet" href="style.css">
+</head>
+<body>
+    <!-- 游戏主容器 -->
+    <div id="game-container">
+        <!-- 背景层 -->
+        <div id="background"></div>
+        
+        <!-- 开始界面 -->
+        <div id="start-screen">
+            <h1>熊出没森林探险</h1>
+            <p>2岁宝宝专属的按键游戏</p>
+            <button id="start-btn">点击进入全屏游戏</button>
+            <div class="parent-tips">
+                <p>家长提示：进入后所有按键都将被孩子接管。</p>
+                <p>退出方式：长按 <strong>Command + Shift + W</strong> 3秒 或 依次输入方向键 <strong>上上下下左右左右</strong></p>
+            </div>
+        </div>
+
+        <!-- 游戏画布（用于绘制粒子、文字特效） -->
+        <canvas id="fx-canvas"></canvas>
+
+        <!-- 角色层（用于放置熊大、熊二、光头强等元素） -->
+        <div id="character-layer"></div>
+
+        <!-- 退出提示层 -->
+        <div id="exit-overlay" class="hidden">
+            <div class="progress-bar-container">
+                <div id="exit-progress"></div>
+            </div>
+            <p>正在退出...</p>
+        </div>
+    </div>
+
+    <script src="sounds.js"></script>
+    <script src="game.js"></script>
+</body>
+</html>
