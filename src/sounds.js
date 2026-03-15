@@ -126,6 +126,25 @@ class SoundEngine {
         else if (r < 0.9) this.playSweep();
         else this.playWah();
     }
+
+    // 庆祝音效 (上行琶音)
+    playCelebration() {
+        if (!this.isInitialized) return;
+        const now = this.ctx.currentTime;
+        this.notes.forEach((freq, i) => {
+            const osc = this.ctx.createOscillator();
+            const gain = this.ctx.createGain();
+            osc.connect(gain);
+            gain.connect(this.ctx.destination);
+            osc.type = 'sine';
+            osc.frequency.setValueAtTime(freq * 2, now + i * 0.12);
+            gain.gain.setValueAtTime(0, now + i * 0.12);
+            gain.gain.linearRampToValueAtTime(0.4, now + i * 0.12 + 0.05);
+            gain.gain.exponentialRampToValueAtTime(0.01, now + i * 0.12 + 0.3);
+            osc.start(now + i * 0.12);
+            osc.stop(now + i * 0.12 + 0.3);
+        });
+    }
 }
 
 // 导出全局单例

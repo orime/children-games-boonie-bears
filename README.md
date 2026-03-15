@@ -29,21 +29,23 @@
 
 ## 🚀 立即开始
 
-### 1. 环境准备
+### 方式一：直接下载安装客户端 (推荐)
+前往项目的 [Release 页面](https://github.com/orime/children-games-boonie-bears/releases) 下载最新版本的打包好的安装程序（支持 macOS `.dmg` 或 Windows `.exe` 等）。
+解压或安装之后，双击应用图标即可直接启动运行。不需要配置任何开发环境！
 
-确保您的电脑已安装 [Node.js](https://nodejs.org/) (附带 npm)。
+### 方式二：通过源码运行
 
-### 2. 克隆与安装
+如果您希望二次开发或本地运行源码，请确保您的电脑已安装 [Node.js](https://nodejs.org/) (附带 npm)。
 
 ```bash
-git clone https://github.com/your-username/children-games.git
-cd children-games
+# 1. 克隆代码库
+git clone https://github.com/orime/children-games-boonie-bears.git
+cd children-games-boonie-bears
+
+# 2. 安装依赖
 npm install
-```
 
-### 3. 启动游戏
-
-```bash
+# 3. 启动游戏
 npm start
 ```
 > **注意**：启动后应用将立刻进入全屏并锁死屏幕。在游玩结束前，您在此桌面上的其它工作将被完全遮挡。
