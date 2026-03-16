@@ -133,7 +133,6 @@ body, html {
     background-size: contain;
     background-repeat: no-repeat;
     background-position: center;
-    mix-blend-mode: multiply;
 }
 
 /* === 数字认知展示 === */
