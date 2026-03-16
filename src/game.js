@@ -191,25 +191,20 @@ document.addEventListener('DOMContentLoaded', () => {
             return; // 数字键有专门的展示，不触发其他效果
         }
 
-        // 3. 检查隐藏彩蛋
+        // 3. 检查任务系统（彩蛋与战斗）
         if (window.TaskSystem) {
+            // 如果正在战斗，所有按键都计入攻击
+            if (window.TaskSystem.getIsInBattle()) {
+                window.TaskSystem.handleBattleInput();
+                return;
+            }
+
             const eggTriggered = window.TaskSystem.checkEasterEggs(e.key);
             window.TaskSystem.maybeSwitch(); // 光标切换
             if (eggTriggered) return;
         }
 
-        // 4. 屏幕特效（震动 & 闪光）
-        const randEffect = Math.random();
-        if (randEffect < 0.08) {
-            document.body.classList.remove('anim-shake', 'anim-shake-hard');
-            void document.body.offsetWidth;
-            document.body.classList.add('anim-shake-hard');
-        } else if (randEffect < 0.25) {
-            document.body.classList.remove('anim-shake', 'anim-shake-hard');
-            void document.body.offsetWidth;
-            document.body.classList.add('anim-shake');
-        }
-
+        // 4. 屏幕特效（仅保留闪光，移除抖动）
         if (Math.random() < 0.04) {
             flashLayer.classList.remove('anim-flash');
             void flashLayer.offsetWidth;
@@ -241,7 +236,6 @@ document.addEventListener('DOMContentLoaded', () => {
         const el = document.createElement('div');
         el.className = 'sprite';
         el.style.backgroundImage = `url('assets/${charType}')`;
-        el.style.mixBlendMode = 'multiply';
         const size = Math.random() * 250 + 180;
         el.style.width = `${size}px`;
         el.style.height = `${size}px`;
