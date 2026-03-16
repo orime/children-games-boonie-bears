@@ -33,13 +33,19 @@ document.addEventListener('DOMContentLoaded', () => {
     ];
     let currentSeason = 0;
 
-    // 角色列表（扩展版）
+    // 角色+道具列表（扩展版）
     const characters = [
         'bear-big.png', 'bear-big.png',
         'bear-small.png', 'bear-small.png',
         'logger.png',
         'jiji-king.png',
-        'bengbeng.png'
+        'bengbeng.png',
+        'honey-pot.png',
+        'mushroom.png',
+        'log-cabin.png',
+        'tree-stump.png',
+        'butterflies.png',
+        'logging-truck.png'
     ];
 
     // 退出机制
