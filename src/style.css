@@ -21,6 +21,10 @@ body, html {
     overflow: hidden;
 }
 
+.hidden {
+    display: none !important;
+}
+
 /* === 四季背景系统 === */
 #background {
     position: absolute;

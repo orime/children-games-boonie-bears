@@ -30,8 +30,8 @@
 ## 🚀 立即开始
 
 ### 方式一：直接下载安装客户端 (推荐)
-前往项目的 [Release 页面](https://github.com/orime/children-games-boonie-bears/releases) 下载最新版本的打包好的安装程序（支持 macOS `.dmg` 或 Windows `.exe` 等）。
-解压或安装之后，双击应用图标即可直接启动运行。不需要配置任何开发环境！
+前往项目的 [Release 页面](https://github.com/orime/children-games-boonie-bears/releases) 下载最新版本的打包产物。当前提供 macOS Apple Silicon 的 `.zip` 包，解压后即可直接运行应用。
+首次打开如果遇到 macOS 安全提示，可在“系统设置 -> 隐私与安全性”中选择继续打开。
 
 ### 方式二：通过源码运行
 

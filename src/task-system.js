@@ -9,6 +9,7 @@ window.TaskSystem = (() => {
     
     // --- 战斗系统状态 ---
     let isInBattle = false;
+    let isBattleCoolingDown = false;
     let loggerHP = 100;
     const ATTACK_POWER = 5; // 每次点击造成的伤害
     
@@ -18,7 +19,7 @@ window.TaskSystem = (() => {
     let cursorIndex = 0;
 
     function checkEasterEggs(key) {
-        if (isInBattle) return true; // 战斗中不触发其他彩蛋
+        if (isInBattle || isBattleCoolingDown) return true; // 战斗展示期间不触发其他彩蛋
 
         // 彩蛋1: 连按同一键 8 次 → 触发光头强砍树危机（进入战斗模式）
         if (key === lastKey) {
@@ -67,28 +68,29 @@ window.TaskSystem = (() => {
 
     // --- 战斗逻辑 ---
     function startBattle() {
-        if (isInBattle) return;
+        if (isInBattle || isBattleCoolingDown) return;
         isInBattle = true;
         loggerHP = 100;
 
         const overlay = document.getElementById('battle-overlay');
         const progress = document.getElementById('battle-progress');
         const logger = document.getElementById('battle-logger');
-        
+
         overlay.classList.remove('hidden');
         progress.style.width = '100%';
         logger.style.backgroundImage = "url('assets/logger-chopping.png')";
         logger.style.animation = "loggerChopAction 0.4s infinite alternate ease-in-out";
+        logger.style.transform = '';
 
         showTaskBanner("🪓 警告！光头强在砍树！快把他打跑！🌲");
         if (window.soundEngine) window.soundEngine.playWah();
     }
 
     function handleBattleInput() {
-        if (!isInBattle) return;
+        if (!isInBattle || isBattleCoolingDown) return;
 
         // 造成伤害
-        loggerHP -= ATTACK_POWER;
+        loggerHP = Math.max(0, loggerHP - ATTACK_POWER);
         const progress = document.getElementById('battle-progress');
         progress.style.width = `${loggerHP}%`;
 
@@ -116,8 +118,9 @@ window.TaskSystem = (() => {
     }
 
     function winBattle() {
-        if (!isInBattle) return;
+        if (!isInBattle || isBattleCoolingDown) return;
         isInBattle = false;
+        isBattleCoolingDown = true;
 
         const logger = document.getElementById('battle-logger');
         logger.style.backgroundImage = "url('assets/logger-defeated.png')";
@@ -134,6 +137,7 @@ window.TaskSystem = (() => {
             document.getElementById('battle-overlay').classList.add('hidden');
             const confettiLayer = document.getElementById('confetti-layer');
             confettiLayer.innerHTML = '';
+            isBattleCoolingDown = false;
         }, 4000);
     }
 
@@ -216,6 +220,6 @@ window.TaskSystem = (() => {
         checkEasterEggs, 
         maybeSwitch, 
         handleBattleInput, 
-        getIsInBattle: () => isInBattle 
+        getIsInBattle: () => isInBattle || isBattleCoolingDown
     };
 })();

@@ -16,6 +16,7 @@ window.NumberTask = (() => {
 
     // 追踪完成进度
     const recognized = new Set();
+    let hideTimer = null;
 
     function isNumberKey(key) {
         return key >= '0' && key <= '9';
@@ -46,14 +47,17 @@ window.NumberTask = (() => {
             countArea.appendChild(span);
         }
 
+        clearTimeout(hideTimer);
         container.classList.remove('hidden');
+        container.classList.remove('anim-number-show');
+        void container.offsetWidth;
         container.classList.add('anim-number-show');
 
         // 记录已认识的数字
         recognized.add(key);
 
         // 2.5秒后隐藏
-        setTimeout(() => {
+        hideTimer = setTimeout(() => {
             container.classList.add('hidden');
             container.classList.remove('anim-number-show');
 
