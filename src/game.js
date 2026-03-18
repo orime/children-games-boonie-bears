@@ -1,4 +1,4 @@
-// 熊出没按键游戏核心逻辑 — v2.0 (3岁教育互动版)
+// 熊出没按键游戏核心逻辑 — v2.1 (迷你游戏版)
 
 document.addEventListener('DOMContentLoaded', () => {
     // 元素获取
@@ -23,6 +23,7 @@ document.addEventListener('DOMContentLoaded', () => {
     // 游戏状态
     let isPlaying = false;
     let keyCount = 0;
+    const MAX_DOM_SPRITES = 15; // DOM 元素上限，防止内存泄漏
 
     // 四季系统
     const seasons = [
@@ -33,7 +34,7 @@ document.addEventListener('DOMContentLoaded', () => {
     ];
     let currentSeason = 0;
 
-    // 角色+道具列表（扩展版）
+    // 角色+道具列表
     const characters = [
         'bear-big.png', 'bear-big.png',
         'bear-small.png', 'bear-small.png',
@@ -91,13 +92,10 @@ document.addEventListener('DOMContentLoaded', () => {
     function switchSeason() {
         currentSeason = (currentSeason + 1) % seasons.length;
         const s = seasons[currentSeason];
-
-        // 切换背景
         bgLayer.className = s.css;
         seasonEmoji.textContent = s.emoji;
         seasonName.textContent = s.name;
 
-        // 显示季节通知
         const banner = document.getElementById('task-banner');
         const taskText = document.getElementById('task-text');
         taskText.textContent = `${s.emoji} ${s.name}来了！${s.emoji}`;
@@ -132,15 +130,18 @@ document.addEventListener('DOMContentLoaded', () => {
         e.preventDefault();
         e.stopPropagation();
 
-        // 退出机制 1: 方向键密码
-        if (e.code === exitCode[exitCodeIndex]) {
-            exitCodeIndex++;
-            if (exitCodeIndex === exitCode.length) {
-                exitGame();
-                return;
+        // 退出机制 1: 方向键密码（只在无迷你游戏时检测）
+        const anyMiniActive = isMiniGameActive();
+        if (!anyMiniActive) {
+            if (e.code === exitCode[exitCodeIndex]) {
+                exitCodeIndex++;
+                if (exitCodeIndex === exitCode.length) {
+                    exitGame();
+                    return;
+                }
+            } else {
+                exitCodeIndex = 0;
             }
-        } else {
-            exitCodeIndex = 0;
         }
 
         // 退出机制 2: 长按 Cmd+Shift+W
@@ -158,7 +159,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
         // 不重复触发
         if (!e.repeat) {
-            triggerRandomEffect(e);
+            routeInput(e);
         }
     }, { capture: true });
 
@@ -178,45 +179,68 @@ document.addEventListener('DOMContentLoaded', () => {
         }
     }, { capture: true });
 
-    // ===== 互动特效逻辑 =====
-    function triggerRandomEffect(e) {
+    // ===== 辅助：检查迷你游戏状态 =====
+    function isMiniGameActive() {
+        return (window.MiniMapGame && window.MiniMapGame.getIsActive()) ||
+               (window.RhythmGame && window.RhythmGame.getIsActive()) ||
+               (window.ColorMatchGame && window.ColorMatchGame.getIsActive());
+    }
+
+    // ===== 统一输入路由 =====
+    function routeInput(e) {
         keyCount++;
 
-        // 1. 播放声音
-        window.soundEngine.playRandom();
-
-        // 2. 检查数字键 → 数字认知模块
-        if (window.NumberTask && window.NumberTask.isNumberKey(e.key)) {
-            window.NumberTask.showNumber(e.key);
-            return; // 数字键有专门的展示，不触发其他效果
+        // 1. 优先：迷你游戏输入
+        if (window.MiniMapGame && window.MiniMapGame.getIsActive()) {
+            if (window.MiniMapGame.handleInput(e.code)) return;
+        }
+        if (window.RhythmGame && window.RhythmGame.getIsActive()) {
+            if (window.RhythmGame.handleInput(e.code)) return;
+        }
+        if (window.ColorMatchGame && window.ColorMatchGame.getIsActive()) {
+            if (window.ColorMatchGame.handleInput(e.key)) return;
         }
 
-        // 3. 检查任务系统（彩蛋与战斗）
-        if (window.TaskSystem) {
-            // 如果正在战斗，所有按键都计入攻击
-            if (window.TaskSystem.getIsInBattle()) {
-                window.TaskSystem.handleBattleInput();
-                return;
-            }
+        // 2. 战斗系统
+        if (window.TaskSystem && window.TaskSystem.getIsInBattle()) {
+            window.TaskSystem.handleBattleInput(e.code);
+            return;
+        }
 
+        // 3. 播放声音
+        window.soundEngine.playRandom();
+
+        // 4. 数字键 → 数字认知模块
+        if (window.NumberTask && window.NumberTask.isNumberKey(e.key)) {
+            window.NumberTask.showNumber(e.key);
+            return;
+        }
+
+        // 5. 彩蛋检查
+        if (window.TaskSystem) {
             const eggTriggered = window.TaskSystem.checkEasterEggs(e.key);
-            window.TaskSystem.maybeSwitch(); // 光标切换
+            window.TaskSystem.maybeSwitch();
             if (eggTriggered) return;
         }
 
-        // 4. 屏幕特效（仅保留闪光，移除抖动）
+        // 6. 随机触发迷你游戏
+        if (window.TaskSystem && window.TaskSystem.maybeStartMiniGame(keyCount)) {
+            return;
+        }
+
+        // 7. 闪光
         if (Math.random() < 0.04) {
             flashLayer.classList.remove('anim-flash');
             void flashLayer.offsetWidth;
             flashLayer.classList.add('anim-flash');
         }
 
-        // 5. 随机角色飞入
+        // 8. 随机角色飞入
         if (Math.random() < 0.55) {
             spawnCharacter();
         }
 
-        // 6. 文字/Emoji 弹出
+        // 9. 文字/Emoji 弹出
         let text = e.key;
         if (text.length > 1) {
             const emojis = ['🌲', '🐻', '🍯', '🪵', '🪓', '🍄', '🍎', '🍓', '🦋', '🐞', '☀️', '☁️', '🐿️', '🌈', '🐾', '🍃', '✨', '🌺', '🍂', '❄️'];
@@ -224,7 +248,7 @@ document.addEventListener('DOMContentLoaded', () => {
         }
         spawnBigText(text);
 
-        // 7. 四季切换（每40次按键）
+        // 10. 四季切换
         if (keyCount % 40 === 0) {
             switchSeason();
         }
@@ -232,6 +256,9 @@ document.addEventListener('DOMContentLoaded', () => {
 
     // ===== 生成角色 =====
     function spawnCharacter() {
+        // DOM 限制
+        if (charLayer.children.length >= MAX_DOM_SPRITES) return;
+
         const charType = characters[Math.floor(Math.random() * characters.length)];
         const el = document.createElement('div');
         el.className = 'sprite';
@@ -265,6 +292,8 @@ document.addEventListener('DOMContentLoaded', () => {
 
     // ===== 生成大字体 =====
     function spawnBigText(text) {
+        if (charLayer.children.length >= MAX_DOM_SPRITES) return;
+
         const el = document.createElement('div');
         el.className = 'big-text';
         el.innerText = text.toUpperCase();

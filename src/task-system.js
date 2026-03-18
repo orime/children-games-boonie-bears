@@ -1,4 +1,4 @@
-// 核心任务系统：保卫森林战斗模块 + 隐藏彩蛋
+// 核心任务系统：保卫森林战斗模块 + 隐藏彩蛋 + 迷你游戏调度
 
 window.TaskSystem = (() => {
     // --- 状态追踪 ---
@@ -11,17 +11,22 @@ window.TaskSystem = (() => {
     let isInBattle = false;
     let isBattleCoolingDown = false;
     let loggerHP = 100;
-    const ATTACK_POWER = 5; // 每次点击造成的伤害
+    const ATTACK_POWER = 5;
+    const ATTACK_POWER_AIMED = 10; // 方向瞄准命中时双倍
+    let aimDirection = null; // 当前瞄准方向
     
     // --- 角色与元素 ---
     const attackers = ['bear-big.png', 'bear-small.png', 'jiji-king.png', 'bengbeng.png', 'bear-big-angry.png'];
     const cursorEmojis = ['🐾', '🪓', '🍯', '🦋', '⭐', '🐻', '🌲'];
     let cursorIndex = 0;
 
-    function checkEasterEggs(key) {
-        if (isInBattle || isBattleCoolingDown) return true; // 战斗展示期间不触发其他彩蛋
+    // --- 迷你游戏调度 ---
+    let miniGameCooldown = false;
 
-        // 彩蛋1: 连按同一键 8 次 → 触发光头强砍树危机（进入战斗模式）
+    function checkEasterEggs(key) {
+        if (isInBattle || isBattleCoolingDown || miniGameCooldown) return true;
+
+        // 彩蛋1: 连按同一键 8 次 → 光头强砍树战斗
         if (key === lastKey) {
             sameKeyCount++;
         } else {
@@ -47,7 +52,7 @@ window.TaskSystem = (() => {
             spaceCount = 0;
         }
 
-        // 彩蛋3: 疯狂模式（1秒内超过8次按键）
+        // 彩蛋3: 疯狂模式
         const now = Date.now();
         rapidKeyTimestamps.push(now);
         rapidKeyTimestamps = rapidKeyTimestamps.filter(t => now - t < 1000);
@@ -57,7 +62,7 @@ window.TaskSystem = (() => {
             return true;
         }
 
-        // 随机小概率触发战斗 (0.5%)
+        // 随机触发战斗 (0.5%)
         if (Math.random() < 0.005) {
             startBattle();
             return true;
@@ -66,7 +71,7 @@ window.TaskSystem = (() => {
         return false;
     }
 
-    // --- 战斗逻辑 ---
+    // ========= 战斗逻辑 (改进版) =========
     function startBattle() {
         if (isInBattle || isBattleCoolingDown) return;
         isInBattle = true;
@@ -78,27 +83,63 @@ window.TaskSystem = (() => {
 
         overlay.classList.remove('hidden');
         progress.style.width = '100%';
-        logger.style.backgroundImage = "url('assets/logger-chopping.png')";
-        logger.style.animation = "loggerChopAction 0.4s infinite alternate ease-in-out";
-        logger.style.transform = '';
+        
+        // 光头强 + 旁边的大树
+        logger.innerHTML = '';
+        logger.style = '';
+        logger.innerHTML = `
+            <div class="battle-scene">
+                <img src="assets/big-tree.png" class="battle-tree" />
+                <img src="assets/logger-chopping.png" class="battle-logger-img" />
+            </div>
+            <div id="aim-indicator" class="aim-indicator"></div>
+        `;
 
-        showTaskBanner("🪓 警告！光头强在砍树！快把他打跑！🌲");
+        showTaskBanner("🪓 光头强在砍树！快按方向键瞄准打他！🌲");
         if (window.soundEngine) window.soundEngine.playWah();
+        
+        updateAimDirection();
     }
 
-    function handleBattleInput() {
+    function updateAimDirection() {
+        const dirs = [
+            { code: 'ArrowUp', emoji: '⬆️' },
+            { code: 'ArrowDown', emoji: '⬇️' },
+            { code: 'ArrowLeft', emoji: '⬅️' },
+            { code: 'ArrowRight', emoji: '➡️' },
+        ];
+        aimDirection = dirs[Math.floor(Math.random() * dirs.length)];
+        const indicator = document.getElementById('aim-indicator');
+        if (indicator) {
+            indicator.textContent = aimDirection.emoji;
+            indicator.classList.add('aim-flash');
+            setTimeout(() => indicator.classList.remove('aim-flash'), 300);
+        }
+    }
+
+    function handleBattleInput(code) {
         if (!isInBattle || isBattleCoolingDown) return;
 
-        // 造成伤害
-        loggerHP = Math.max(0, loggerHP - ATTACK_POWER);
+        let damage = 1; // 默认最小伤害
+        if (aimDirection && code === aimDirection.code) {
+            damage = ATTACK_POWER_AIMED; // 瞄准命中！双倍伤害
+        } else if (['ArrowUp','ArrowDown','ArrowLeft','ArrowRight'].includes(code)) {
+            damage = ATTACK_POWER; // 方向键但没命中
+        } else {
+            damage = 3; // 其他键小伤害
+        }
+
+        loggerHP = Math.max(0, loggerHP - damage);
         const progress = document.getElementById('battle-progress');
-        progress.style.width = `${loggerHP}%`;
+        if (progress) progress.style.width = `${loggerHP}%`;
 
-        // 弹出攻击角色
         spawnAttacker();
-
-        // 播放打击声
         if (window.soundEngine) window.soundEngine.playPop();
+
+        // 更新瞄准方向
+        if (damage >= ATTACK_POWER) {
+            updateAimDirection();
+        }
 
         if (loggerHP <= 0) {
             winBattle();
@@ -112,7 +153,6 @@ window.TaskSystem = (() => {
         el.style.backgroundImage = `url('assets/${char}')`;
         el.style.left = `${Math.random() * 30 + 10}%`;
         el.style.top = `${Math.random() * 30 + 50}%`;
-        
         document.getElementById('battle-overlay').appendChild(el);
         setTimeout(() => el.remove(), 500);
     }
@@ -123,22 +163,25 @@ window.TaskSystem = (() => {
         isBattleCoolingDown = true;
 
         const logger = document.getElementById('battle-logger');
-        logger.style.backgroundImage = "url('assets/logger-defeated.png')";
-        logger.style.animation = "none";
-        logger.style.transform = "scale(1.2)";
+        if (logger) {
+            logger.innerHTML = `
+                <div class="battle-scene">
+                    <img src="assets/big-tree.png" class="battle-tree" />
+                    <img src="assets/logger-defeated.png" class="battle-logger-img battle-defeated" />
+                </div>
+            `;
+        }
 
         showTaskBanner("🎉 胜利！光头强被打跑了！🌲✨");
         if (window.soundEngine) window.soundEngine.playCelebration();
-        
         spawnConfetti();
 
-        // 4秒后结束战斗状态
+        // 1.5秒后快速消失
         setTimeout(() => {
             document.getElementById('battle-overlay').classList.add('hidden');
-            const confettiLayer = document.getElementById('confetti-layer');
-            confettiLayer.innerHTML = '';
+            document.getElementById('confetti-layer').innerHTML = '';
             isBattleCoolingDown = false;
-        }, 4000);
+        }, 1500);
     }
 
     function spawnConfetti() {
@@ -156,7 +199,7 @@ window.TaskSystem = (() => {
         }
     }
 
-    // --- 通用辅助 ---
+    // ========= 通用辅助 =========
     function showTaskBanner(text) {
         const banner = document.getElementById('task-banner');
         const taskText = document.getElementById('task-text');
@@ -183,8 +226,7 @@ window.TaskSystem = (() => {
 
     function triggerCrazyMode() {
         const layer = document.getElementById('character-layer');
-        const chars = attackers;
-        chars.forEach((c, i) => {
+        attackers.forEach((c, i) => {
             const el = document.createElement('div');
             el.className = 'sprite anim-pop';
             el.style.backgroundImage = `url('assets/${c}')`;
@@ -216,10 +258,39 @@ window.TaskSystem = (() => {
         if (cursorSwitchCounter % 15 === 0) switchCursor();
     }
 
+    // 迷你游戏随机触发
+    function maybeStartMiniGame(keyCount) {
+        if (miniGameCooldown || isInBattle || isBattleCoolingDown) return false;
+        
+        // 检查其他迷你游戏是否活跃
+        if (window.MiniMapGame && window.MiniMapGame.getIsActive()) return false;
+        if (window.RhythmGame && window.RhythmGame.getIsActive()) return false;
+        if (window.ColorMatchGame && window.ColorMatchGame.getIsActive()) return false;
+
+        // 每80次按键触发一次，或随机0.3%
+        if (keyCount % 80 === 0 || Math.random() < 0.003) {
+            miniGameCooldown = true;
+            setTimeout(() => miniGameCooldown = false, 15000); // 15秒冷却
+
+            const game = Math.random();
+            if (game < 0.4 && window.MiniMapGame) {
+                window.MiniMapGame.start();
+            } else if (game < 0.7 && window.RhythmGame) {
+                window.RhythmGame.start();
+            } else if (window.ColorMatchGame) {
+                window.ColorMatchGame.start();
+            }
+            return true;
+        }
+        return false;
+    }
+
     return { 
         checkEasterEggs, 
         maybeSwitch, 
         handleBattleInput, 
-        getIsInBattle: () => isInBattle || isBattleCoolingDown
+        getIsInBattle: () => isInBattle || isBattleCoolingDown,
+        spawnConfettiPublic: spawnConfetti,
+        maybeStartMiniGame,
     };
 })();
