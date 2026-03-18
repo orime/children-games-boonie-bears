@@ -1,4 +1,4 @@
-// 核心任务系统：保卫森林战斗模块 + 隐藏彩蛋 + 迷你游戏调度
+// 核心任务系统：保卫森林战斗模块 + 隐藏彩蛋 + 迷你游戏调度 (v2.1.1 bugfix)
 
 window.TaskSystem = (() => {
     // --- 状态追踪 ---
@@ -9,11 +9,10 @@ window.TaskSystem = (() => {
     
     // --- 战斗系统状态 ---
     let isInBattle = false;
-    let isBattleCoolingDown = false;
     let loggerHP = 100;
     const ATTACK_POWER = 5;
-    const ATTACK_POWER_AIMED = 10; // 方向瞄准命中时双倍
-    let aimDirection = null; // 当前瞄准方向
+    const ATTACK_POWER_AIMED = 10;
+    let aimDirection = null;
     
     // --- 角色与元素 ---
     const attackers = ['bear-big.png', 'bear-small.png', 'jiji-king.png', 'bengbeng.png', 'bear-big-angry.png'];
@@ -23,10 +22,18 @@ window.TaskSystem = (() => {
     // --- 迷你游戏调度 ---
     let miniGameCooldown = false;
 
-    function checkEasterEggs(key) {
-        if (isInBattle || isBattleCoolingDown || miniGameCooldown) return true;
+    function isAnyGameActive() {
+        return isInBattle ||
+               (window.MiniMapGame && window.MiniMapGame.getIsActive()) ||
+               (window.RhythmGame && window.RhythmGame.getIsActive()) ||
+               (window.ColorMatchGame && window.ColorMatchGame.getIsActive());
+    }
 
-        // 彩蛋1: 连按同一键 8 次 → 光头强砍树战斗
+    function checkEasterEggs(key) {
+        // 任何游戏活跃中或冷却中：不触发新彩蛋，但返回 false 让正常游戏继续
+        if (isAnyGameActive() || miniGameCooldown) return false;
+
+        // 彩蛋1: 连按同一键 15 次 → 光头强砍树战斗（提高门槛）
         if (key === lastKey) {
             sameKeyCount++;
         } else {
@@ -34,7 +41,7 @@ window.TaskSystem = (() => {
             sameKeyCount = 1;
         }
 
-        if (sameKeyCount === 8) {
+        if (sameKeyCount === 15) {
             sameKeyCount = 0;
             startBattle();
             return true;
@@ -52,19 +59,13 @@ window.TaskSystem = (() => {
             spaceCount = 0;
         }
 
-        // 彩蛋3: 疯狂模式
+        // 彩蛋3: 疯狂模式（1秒内超过10次按键）
         const now = Date.now();
         rapidKeyTimestamps.push(now);
         rapidKeyTimestamps = rapidKeyTimestamps.filter(t => now - t < 1000);
-        if (rapidKeyTimestamps.length >= 8) {
+        if (rapidKeyTimestamps.length >= 10) {
             rapidKeyTimestamps = [];
             triggerCrazyMode();
-            return true;
-        }
-
-        // 随机触发战斗 (0.5%)
-        if (Math.random() < 0.005) {
-            startBattle();
             return true;
         }
 
@@ -73,7 +74,7 @@ window.TaskSystem = (() => {
 
     // ========= 战斗逻辑 (改进版) =========
     function startBattle() {
-        if (isInBattle || isBattleCoolingDown) return;
+        if (isAnyGameActive()) return;
         isInBattle = true;
         loggerHP = 100;
 
@@ -84,20 +85,17 @@ window.TaskSystem = (() => {
         overlay.classList.remove('hidden');
         progress.style.width = '100%';
         
-        // 光头强 + 旁边的大树
-        logger.innerHTML = '';
-        logger.style = '';
+        // 光头强在左，树在右（斧子朝右砍）
         logger.innerHTML = `
             <div class="battle-scene">
-                <img src="assets/big-tree.png" class="battle-tree" />
                 <img src="assets/logger-chopping.png" class="battle-logger-img" />
+                <img src="assets/big-tree.png" class="battle-tree" />
             </div>
             <div id="aim-indicator" class="aim-indicator"></div>
         `;
 
         showTaskBanner("🪓 光头强在砍树！快按方向键瞄准打他！🌲");
         if (window.soundEngine) window.soundEngine.playWah();
-        
         updateAimDirection();
     }
 
@@ -112,21 +110,22 @@ window.TaskSystem = (() => {
         const indicator = document.getElementById('aim-indicator');
         if (indicator) {
             indicator.textContent = aimDirection.emoji;
+            indicator.classList.remove('aim-flash');
+            void indicator.offsetWidth;
             indicator.classList.add('aim-flash');
-            setTimeout(() => indicator.classList.remove('aim-flash'), 300);
         }
     }
 
     function handleBattleInput(code) {
-        if (!isInBattle || isBattleCoolingDown) return;
+        if (!isInBattle) return;
 
-        let damage = 1; // 默认最小伤害
+        let damage = 2;
         if (aimDirection && code === aimDirection.code) {
-            damage = ATTACK_POWER_AIMED; // 瞄准命中！双倍伤害
+            damage = ATTACK_POWER_AIMED;
         } else if (['ArrowUp','ArrowDown','ArrowLeft','ArrowRight'].includes(code)) {
-            damage = ATTACK_POWER; // 方向键但没命中
+            damage = ATTACK_POWER;
         } else {
-            damage = 3; // 其他键小伤害
+            damage = 3;
         }
 
         loggerHP = Math.max(0, loggerHP - damage);
@@ -136,38 +135,33 @@ window.TaskSystem = (() => {
         spawnAttacker();
         if (window.soundEngine) window.soundEngine.playPop();
 
-        // 更新瞄准方向
-        if (damage >= ATTACK_POWER) {
-            updateAimDirection();
-        }
-
-        if (loggerHP <= 0) {
-            winBattle();
-        }
+        if (damage >= ATTACK_POWER) updateAimDirection();
+        if (loggerHP <= 0) winBattle();
     }
 
     function spawnAttacker() {
+        const overlay = document.getElementById('battle-overlay');
+        if (!overlay) return;
         const char = attackers[Math.floor(Math.random() * attackers.length)];
         const el = document.createElement('div');
         el.className = 'battle-character';
         el.style.backgroundImage = `url('assets/${char}')`;
         el.style.left = `${Math.random() * 30 + 10}%`;
         el.style.top = `${Math.random() * 30 + 50}%`;
-        document.getElementById('battle-overlay').appendChild(el);
+        overlay.appendChild(el);
         setTimeout(() => el.remove(), 500);
     }
 
     function winBattle() {
-        if (!isInBattle || isBattleCoolingDown) return;
+        if (!isInBattle) return;
         isInBattle = false;
-        isBattleCoolingDown = true;
 
         const logger = document.getElementById('battle-logger');
         if (logger) {
             logger.innerHTML = `
                 <div class="battle-scene">
-                    <img src="assets/big-tree.png" class="battle-tree" />
                     <img src="assets/logger-defeated.png" class="battle-logger-img battle-defeated" />
+                    <img src="assets/big-tree.png" class="battle-tree" />
                 </div>
             `;
         }
@@ -176,16 +170,16 @@ window.TaskSystem = (() => {
         if (window.soundEngine) window.soundEngine.playCelebration();
         spawnConfetti();
 
-        // 1.5秒后快速消失
+        // 1.5秒后消失，不设 cooldown 阻断按键
         setTimeout(() => {
             document.getElementById('battle-overlay').classList.add('hidden');
             document.getElementById('confetti-layer').innerHTML = '';
-            isBattleCoolingDown = false;
         }, 1500);
     }
 
     function spawnConfetti() {
         const layer = document.getElementById('confetti-layer');
+        if (!layer) return;
         const colors = ['#FFD700', '#FF6B6B', '#4ECDC4', '#FFE66D', '#FF9F43'];
         for (let i = 0; i < 50; i++) {
             const c = document.createElement('div');
@@ -203,6 +197,7 @@ window.TaskSystem = (() => {
     function showTaskBanner(text) {
         const banner = document.getElementById('task-banner');
         const taskText = document.getElementById('task-text');
+        if (!banner || !taskText) return;
         taskText.textContent = text;
         banner.classList.remove('hidden');
         setTimeout(() => banner.classList.add('hidden'), 3000);
@@ -258,38 +253,37 @@ window.TaskSystem = (() => {
         if (cursorSwitchCounter % 15 === 0) switchCursor();
     }
 
-    // 迷你游戏随机触发
+    // 迷你游戏随机触发（均衡分配）
     function maybeStartMiniGame(keyCount) {
-        if (miniGameCooldown || isInBattle || isBattleCoolingDown) return false;
-        
-        // 检查其他迷你游戏是否活跃
-        if (window.MiniMapGame && window.MiniMapGame.getIsActive()) return false;
-        if (window.RhythmGame && window.RhythmGame.getIsActive()) return false;
-        if (window.ColorMatchGame && window.ColorMatchGame.getIsActive()) return false;
+        if (isAnyGameActive() || miniGameCooldown) return false;
 
-        // 每80次按键触发一次，或随机0.3%
-        if (keyCount % 80 === 0 || Math.random() < 0.003) {
-            miniGameCooldown = true;
-            setTimeout(() => miniGameCooldown = false, 15000); // 15秒冷却
+        // 每60次按键触发一次
+        const shouldTrigger = (keyCount > 0 && keyCount % 60 === 0);
+        if (!shouldTrigger) return false;
 
-            const game = Math.random();
-            if (game < 0.4 && window.MiniMapGame) {
-                window.MiniMapGame.start();
-            } else if (game < 0.7 && window.RhythmGame) {
-                window.RhythmGame.start();
-            } else if (window.ColorMatchGame) {
-                window.ColorMatchGame.start();
-            }
-            return true;
-        }
-        return false;
+        miniGameCooldown = true;
+        setTimeout(() => { miniGameCooldown = false; }, 10000); // 10秒冷却
+
+        // 均衡分配：轮流触发
+        const gamePool = [];
+        if (window.MiniMapGame) gamePool.push(() => window.MiniMapGame.start());
+        if (window.RhythmGame) gamePool.push(() => window.RhythmGame.start());
+        if (window.ColorMatchGame) gamePool.push(() => window.ColorMatchGame.start());
+        // 随机 0-20% 概率触发战斗
+        gamePool.push(() => startBattle());
+        gamePool.push(() => startBattle()); // 战斗权重低（2/5）
+
+        const pick = gamePool[Math.floor(Math.random() * gamePool.length)];
+        pick();
+        return true;
     }
 
     return { 
         checkEasterEggs, 
         maybeSwitch, 
         handleBattleInput, 
-        getIsInBattle: () => isInBattle || isBattleCoolingDown,
+        getIsInBattle: () => isInBattle,
+        isAnyGameActive,
         spawnConfettiPublic: spawnConfetti,
         maybeStartMiniGame,
     };

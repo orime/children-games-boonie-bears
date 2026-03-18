@@ -453,6 +453,10 @@ body, html {
     font-size: 2.5rem;
 }
 
+.map-path {
+    background: rgba(139,90,43,0.2) !important;
+}
+
 /* === 节奏跟拍 === */
 #rhythm-overlay {
     position: absolute;
