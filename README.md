@@ -31,7 +31,14 @@
 
 ### 方式一：直接下载安装客户端 (推荐)
 前往项目的 [Release 页面](https://github.com/orime/children-games-boonie-bears/releases) 下载最新版本的打包产物。当前提供 macOS Apple Silicon 的 `.zip` 包，解压后即可直接运行应用。
-首次打开如果遇到 macOS 安全提示，可在“系统设置 -> 隐私与安全性”中选择继续打开。
+如果您已经把应用拖到“应用程序”目录，首次打开可在终端执行：
+
+```bash
+xattr -dr com.apple.quarantine "/Applications/熊出没森林探险.app"
+open "/Applications/熊出没森林探险.app"
+```
+
+如果应用不在 `/Applications` 下，请把上面的路径替换成实际解压后的 `.app` 路径。也可以在“系统设置 -> 隐私与安全性”中手动选择继续打开。
 
 ### 方式二：通过源码运行
 
